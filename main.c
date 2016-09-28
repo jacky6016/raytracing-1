@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <time.h>
+#include <pthread.h>
 
 #include "primitives.h"
 #include "raytracing.h"
@@ -45,12 +46,28 @@ int main()
     /* allocate by the given resolution */
     pixels = malloc(sizeof(unsigned char) * ROWS * COLS * 3);
     if (!pixels) exit(-1);
+	
+	int threadnum = 1;
+	printf("Specify number of worker threads: ");
+	scanf("%d", &threadnum);
 
     printf("# Rendering scene\n");
     /* do the ray tracing with the given geometry */
     clock_gettime(CLOCK_REALTIME, &start);
-    raytracing(pixels, background,
-               rectangulars, spheres, lights, &view, ROWS, COLS);
+
+	pthread_t * tid = ( pthread_t *) malloc ( threadnum * sizeof( pthread_t ));
+	ray_param **pr = (ray_param **)malloc(threadnum * sizeof(ray_param *));
+	int k;
+	for( k = 0; k < threadnum; k++) {
+		pr[k] = pack_param(pixels, background, rectangulars, 
+						spheres, lights, &view, ROWS, COLS, k, threadnum);
+		pthread_create( &tid[k], NULL, (void *) &raytracing, (void *) pr[k]);
+	}
+	
+	for( k = 0; k < threadnum; k++) {
+		pthread_join( tid[k], NULL);
+	}
+
     clock_gettime(CLOCK_REALTIME, &end);
     {
         FILE *outfile = fopen(OUT_FILENAME, "wb");

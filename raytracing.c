@@ -23,6 +23,7 @@ static int raySphereIntersection(const point3 ray_e,
                                  intersection *ip, double *t1)
 {
     point3 l;
+
     subtract_vector(sph->center, ray_e, l);
     double s = dot_product(l, ray_d);
     double l2 = dot_product(l, l);
@@ -52,10 +53,10 @@ static int rayRectangularIntersection(const point3 ray_e,
                                       rectangular *rec,
                                       intersection *ip, double *t1)
 {
-    point3 e01, e03, p;
+
+	point3 e01, e03, p;
     subtract_vector(rec->vertices[1], rec->vertices[0], e01);
     subtract_vector(rec->vertices[3], rec->vertices[0], e03);
-
     cross_product(ray_d, e03, p);
 
     double det = dot_product(e01, p);
@@ -453,22 +454,22 @@ static unsigned int ray_color(const point3 e, double t,
 }
 
 /* @param background_color this is not ambient light */
-void raytracing(uint8_t *pixels, color background_color,
-                rectangular_node rectangulars, sphere_node spheres,
-                light_node lights, const viewpoint *view,
-                int width, int height)
+void raytracing(void *parameters)
 {
-    point3 u, v, w, d;
+    ray_param *rp = (ray_param *)parameters;
+
+	point3 u, v, w, d;
     color object_color = { 0.0, 0.0, 0.0 };
 
     /* calculate u, v, w */
-    calculateBasisVectors(u, v, w, view);
+    calculateBasisVectors(u, v, w, rp->view);
 
     idx_stack stk;
-
+	
+	// split the work for different threads	
     int factor = sqrt(SAMPLES);
-    for (int j = 0; j < height; j++) {
-        for (int i = 0; i < width; i++) {
+    for (int j = rp->job_num; j < rp->height; j = j + rp->total_jobs) {
+        for (int i = 0; i < rp->width; i++) {
             double r = 0, g = 0, b = 0;
             /* MSAA */
             for (int s = 0; s < SAMPLES; s++) {
@@ -476,23 +477,43 @@ void raytracing(uint8_t *pixels, color background_color,
                 rayConstruction(d, u, v, w,
                                 i * factor + s / factor,
                                 j * factor + s % factor,
-                                view,
-                                width * factor, height * factor);
-                if (ray_color(view->vrp, 0.0, d, &stk, rectangulars, spheres,
-                              lights, object_color,
+                                rp->view,
+                                rp->width * factor, rp->height * factor);
+                if (ray_color(rp->view->vrp, 0.0, d, &stk, rp->rectangulars, rp->spheres,
+                              rp->lights, object_color,
                               MAX_REFLECTION_BOUNCES)) {
                     r += object_color[0];
                     g += object_color[1];
                     b += object_color[2];
                 } else {
-                    r += background_color[0];
-                    g += background_color[1];
-                    b += background_color[2];
+                    r += rp->background_color[0];
+                    g += rp->background_color[1];
+                    b += rp->background_color[2];
                 }
-                pixels[((i + (j * width)) * 3) + 0] = r * 255 / SAMPLES;
-                pixels[((i + (j * width)) * 3) + 1] = g * 255 / SAMPLES;
-                pixels[((i + (j * width)) * 3) + 2] = b * 255 / SAMPLES;
+                rp->pixels[((i + (j * rp->width)) * 3) + 0] = r * 255 / SAMPLES;
+                rp->pixels[((i + (j * rp->width)) * 3) + 1] = g * 255 / SAMPLES;
+                rp->pixels[((i + (j * rp->width)) * 3) + 2] = b * 255 / SAMPLES;
             }
         }
     }
+}
+
+ray_param* pack_param(uint8_t *pixels, double *background_color,
+                rectangular_node rectangulars, sphere_node spheres,
+                light_node lights, const viewpoint *view,
+                int width, int height, int job_num, int total_jobs)
+{
+	ray_param *rp = (ray_param *)malloc(sizeof(ray_param));	
+	rp->pixels = pixels;
+	rp->background_color = background_color;
+	rp->rectangulars = rectangulars;
+	rp->spheres = spheres;
+	rp->lights = lights;
+	rp->view = view;
+	rp->width = width;
+	rp->height = height;
+	rp->job_num = job_num;
+	rp->total_jobs = total_jobs;
+
+	return rp;
 }
