@@ -54,7 +54,7 @@ static int rayRectangularIntersection(const point3 ray_e,
                                       intersection *ip, double *t1)
 {
 
-	point3 e01, e03, p;
+    point3 e01, e03, p;
     subtract_vector(rec->vertices[1], rec->vertices[0], e01);
     subtract_vector(rec->vertices[3], rec->vertices[0], e03);
     cross_product(ray_d, e03, p);
@@ -458,15 +458,15 @@ void raytracing(void *parameters)
 {
     ray_param *rp = (ray_param *)parameters;
 
-	point3 u, v, w, d;
+    point3 u, v, w, d;
     color object_color = { 0.0, 0.0, 0.0 };
 
     /* calculate u, v, w */
     calculateBasisVectors(u, v, w, rp->view);
 
     idx_stack stk;
-	
-	// split the work for different threads	
+
+    // split the work for different threads
     int factor = sqrt(SAMPLES);
     for (int j = rp->job_num; j < rp->height; j = j + rp->total_jobs) {
         for (int i = 0; i < rp->width; i++) {
@@ -499,21 +499,21 @@ void raytracing(void *parameters)
 }
 
 ray_param* pack_param(uint8_t *pixels, double *background_color,
-                rectangular_node rectangulars, sphere_node spheres,
-                light_node lights, const viewpoint *view,
-                int width, int height, int job_num, int total_jobs)
+                      rectangular_node rectangulars, sphere_node spheres,
+                      light_node lights, const viewpoint *view,
+                      int width, int height, int job_num, int total_jobs)
 {
-	ray_param *rp = (ray_param *)malloc(sizeof(ray_param));	
-	rp->pixels = pixels;
-	rp->background_color = background_color;
-	rp->rectangulars = rectangulars;
-	rp->spheres = spheres;
-	rp->lights = lights;
-	rp->view = view;
-	rp->width = width;
-	rp->height = height;
-	rp->job_num = job_num;
-	rp->total_jobs = total_jobs;
+    ray_param *rp = (ray_param *)malloc(sizeof(ray_param));
+    rp->pixels = pixels;
+    rp->background_color = background_color;
+    rp->rectangulars = rectangulars;
+    rp->spheres = spheres;
+    rp->lights = lights;
+    rp->view = view;
+    rp->width = width;
+    rp->height = height;
+    rp->job_num = job_num;
+    rp->total_jobs = total_jobs;
 
-	return rp;
+    return rp;
 }
